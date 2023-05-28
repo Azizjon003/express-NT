@@ -2,10 +2,10 @@ const http = require("http");
 
 class express {
   constructor() {
-    this._server = http.createServer(this.serverHandler);
+    this._server = http.createServer(this._serverHandler);
     this._routes = { GET: {}, POST: {}, PUT: {}, DELETE: {} };
   }
-  _getBody(req) {
+  _getBody = (req) => {
     return new Promise((resolve, reject) => {
       let body = "";
       req.on("data", (chunk) => {
@@ -15,15 +15,24 @@ class express {
         resolve(body);
       });
     });
-  }
-  async _serverHandler(req, res) {
+  };
+  _serverHandler = async (req, res) => {
     const body = await this._getBody(req);
-    res.send = this._send.bind({ res });
-    res.json = this._json.bind({ res });
+    req.body = body;
+    // console.log(req);
+    // if (res.send) {
     res.status = this._status.bind({ res });
+    res.json = this._json.bind({ res });
+    res.send = this._send.bind({ res });
+    // }
+
+
+    
     const method = req.method.toUpperCase();
     const path = req.url;
+
     const routeObject = this._getRouteObject(method, path);
+    console.log(routeObject);
     if (Object.entries(routeObject).length) {
       for (let i = 0; i < routeObject.handlers.length; i++) {
         let handler = routeObject.handlers[i];
@@ -41,63 +50,69 @@ class express {
     } else {
       res.end("Cannot " + method + " " + path + "");
     }
-  }
+  };
 
-  _getRouteObject(method, path) {
+  _addRoute = (method, route, handlers) => {
+    let routeObject = this._getRouteObject(method, route);
+
+    routeObject.handlers = handlers;
+  };
+  _getRouteObject = (method, path) => {
+    // console.log(method, path);
     const route = this._routes[method];
-    console.log(path);
+
     let routeObject = route;
     this._processUrl(path).forEach((el) => {
+      // console.log(el);
       if (!routeObject[el]) {
         routeObject[el] = {};
       }
 
       routeObject = routeObject[el];
     });
-    return routeObject;
-  }
 
-  _processUrl(path) {
-    console.log(path);
+    return routeObject;
+  };
+
+  _processUrl = (path) => {
+    // console.log(path);
     if (path === "/") return ["/"];
     const urlParts = path.split("/").filter((part) => part.length !== 0);
     return urlParts;
-    // const params = {};
-    // const path = urlParts
-    //   .map((part) => {
-    //     if (part.startsWith(":")) {
-    //       params[part.slice(1)] = null;
-    //       return "(\\w+)";
-    //     }
-    //     return part;
-    //   })
-    //   .join("/");
-
-    // return { path, params };
-  }
-  _addRoute = (method, route, handlers) => {
-    const routeObject = this._getRouteObject(method, route);
-
-    routeObject.handlers = handlers;
   };
 
-  listen(port, callback) {
+  listen = (port, callback) => {
     this._server.listen(port, callback);
-  }
-  get(route, ...handlers) {
+  };
+  get = (route, ...handlers) => {
     this._addRoute("GET", route, handlers);
-  }
-  post(route, ...handlers) {
+  };
+  post = (route, ...handlers) => {
+    // console.log(route, handlers);
     this._addRoute("POST", route, handlers);
-  }
+  };
+  put = (route, ...handlers) => {
+    this._addRoute("PUT", route, handlers);
+  };
+  delete = (route, ...handlers) => {
+    this._addRoute("DELETE", route, handlers);
+  };
+  //write data to response
   _send(message) {
-    this.res.send(message);
+    this.res.write(message);
+    this.res.end();
   }
+  //write json data to response
   _json(message) {
+    this.res.setHeader("Content-Type", "application/json");
     this.res.write(JSON.stringify(message));
+    // res.end();
+    this.res.end();
   }
   _status(status) {
+    if(typeof status !== "number") throw new Error("Status must be a number");
     this.res.statusCode = status;
+    return this.res;
   }
 }
 
