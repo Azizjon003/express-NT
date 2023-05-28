@@ -1,0 +1,15 @@
+{
+  "name": "exrpess_me",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+  
+  },
+  "scripts": {
+    "dev":"node --watch test/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

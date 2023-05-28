@@ -1,5 +1,6 @@
 const http = require("http");
-
+const url = require("url");
+const querystring = require("querystring");
 class express {
   constructor() {
     this._server = http.createServer(this._serverHandler);
@@ -16,23 +17,37 @@ class express {
       });
     });
   };
+  _getParams = (req) => {
+    // var params = this.params || {};
+    // var body = this.body || {};
+    // var query = this.query || {};
+
+    // var args = arguments.length === 1
+    //   ? 'name'
+    //   : 'name, default';
+    // deprecate('req.param(' + args + '): Use req.params, req.body, or req.query instead');
+
+    // if (null != params[name] && params.hasOwnProperty(name)) return params[name];
+    // if (null != body[name]) return body[name];
+    // if (null != query[name]) return query[name];
+
+    return defaultValue;
+  };
   _serverHandler = async (req, res) => {
+    const query = this._getQueries(req);
+
     const body = await this._getBody(req);
-    req.body = body;
-    // console.log(req);
-    // if (res.send) {
+    req.body = JSON.parse(body);
+    req.query = query;
     res.status = this._status.bind({ res });
     res.json = this._json.bind({ res });
     res.send = this._send.bind({ res });
     // }
 
-
-    
     const method = req.method.toUpperCase();
     const path = req.url;
 
     const routeObject = this._getRouteObject(method, path);
-    console.log(routeObject);
     if (Object.entries(routeObject).length) {
       for (let i = 0; i < routeObject.handlers.length; i++) {
         let handler = routeObject.handlers[i];
@@ -54,16 +69,15 @@ class express {
 
   _addRoute = (method, route, handlers) => {
     let routeObject = this._getRouteObject(method, route);
-
     routeObject.handlers = handlers;
   };
   _getRouteObject = (method, path) => {
-    // console.log(method, path);
     const route = this._routes[method];
 
     let routeObject = route;
-    this._processUrl(path).forEach((el) => {
-      // console.log(el);
+    const urlParts = this._processUrl(path);
+    console.log(urlParts.query);
+    this._processUrl(path).urlParts.forEach((el) => {
       if (!routeObject[el]) {
         routeObject[el] = {};
       }
@@ -74,13 +88,22 @@ class express {
     return routeObject;
   };
 
+  // _processUrl = (path) => {
+  //   if (path === "/") return ["/"];
+  //   const urlParts = path.split("/").filter((part) => part.length !== 0);
+  //   return urlParts;
+  // };
   _processUrl = (path) => {
-    // console.log(path);
-    if (path === "/") return ["/"];
-    const urlParts = path.split("/").filter((part) => part.length !== 0);
-    return urlParts;
-  };
+    const parsedUrl = url.parse(path);
+    const { pathname, query } = parsedUrl;
 
+    if (pathname === "/") return { urlParts: ["/"], query: {} };
+
+    const urlParts = pathname.split("/").filter((part) => part.length !== 0);
+    const parsedQuery = querystring.parse(query);
+
+    return { urlParts, query: parsedQuery };
+  };
   listen = (port, callback) => {
     this._server.listen(port, callback);
   };
@@ -88,7 +111,6 @@ class express {
     this._addRoute("GET", route, handlers);
   };
   post = (route, ...handlers) => {
-    // console.log(route, handlers);
     this._addRoute("POST", route, handlers);
   };
   put = (route, ...handlers) => {
@@ -110,10 +132,16 @@ class express {
     this.res.end();
   }
   _status(status) {
-    if(typeof status !== "number") throw new Error("Status must be a number");
+    if (typeof status !== "number") throw new Error("Status must be a number");
     this.res.statusCode = status;
     return this.res;
   }
+  _getQueries = (req) => {
+    const parsedUrl = url.parse(req.url);
+    const { query } = parsedUrl;
+    const parsedQuery = querystring.parse(query);
+    return parsedQuery;
+  };
 }
 
 module.exports = express;
