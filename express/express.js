@@ -1,10 +1,12 @@
 const http = require("http");
 const url = require("url");
 const querystring = require("querystring");
+const path = require("path");
+const { deprecate } = require("util");
 class express {
   constructor() {
     this._server = http.createServer(this._serverHandler);
-    this._routes = { GET: {}, POST: {}, PUT: {}, DELETE: {} };
+    this._routes = { GET: {}, POST: {}, PUT: {}, DELETE: {}, USE: {} };
   }
   _getBody = (req) => {
     return new Promise((resolve, reject) => {
@@ -17,32 +19,25 @@ class express {
       });
     });
   };
-  _getParams = (req) => {
-    // var params = this.params || {};
-    // var body = this.body || {};
-    // var query = this.query || {};
-
-    // var args = arguments.length === 1
-    //   ? 'name'
-    //   : 'name, default';
-    // deprecate('req.param(' + args + '): Use req.params, req.body, or req.query instead');
-
-    // if (null != params[name] && params.hasOwnProperty(name)) return params[name];
-    // if (null != body[name]) return body[name];
-    // if (null != query[name]) return query[name];
-
-    return defaultValue;
-  };
   _serverHandler = async (req, res) => {
     const query = this._getQueries(req);
 
     const body = await this._getBody(req);
+    // req.headers = this._getHeaders(req);
+    req.headers = deprecate(
+      req.headers,
+      "req.headers: Use req.getHeaders() instead"
+    );
     req.body = JSON.parse(body);
     req.query = query;
+
+    res.sendFile = this._sendFile.bind({ res });
     res.status = this._status.bind({ res });
     res.json = this._json.bind({ res });
+
     res.send = this._send.bind({ res });
-    // }
+
+    // res.status(200);
 
     const method = req.method.toUpperCase();
     const path = req.url;
@@ -68,15 +63,20 @@ class express {
   };
 
   _addRoute = (method, route, handlers) => {
-    let routeObject = this._getRouteObject(method, route);
-    routeObject.handlers = handlers;
+    if (method === "USE") {
+      let routeObject = this._routes[method];
+      routeObject.handlers = handlers;
+    } else {
+      let routeObject = this._getRouteObject(method, route);
+      routeObject.handlers = handlers;
+    }
   };
   _getRouteObject = (method, path) => {
     const route = this._routes[method];
 
     let routeObject = route;
     const urlParts = this._processUrl(path);
-    console.log(urlParts.query);
+
     this._processUrl(path).urlParts.forEach((el) => {
       if (!routeObject[el]) {
         routeObject[el] = {};
@@ -87,14 +87,9 @@ class express {
 
     return routeObject;
   };
-
-  // _processUrl = (path) => {
-  //   if (path === "/") return ["/"];
-  //   const urlParts = path.split("/").filter((part) => part.length !== 0);
-  //   return urlParts;
-  // };
   _processUrl = (path) => {
     const parsedUrl = url.parse(path);
+
     const { pathname, query } = parsedUrl;
 
     if (pathname === "/") return { urlParts: ["/"], query: {} };
@@ -119,9 +114,14 @@ class express {
   delete = (route, ...handlers) => {
     this._addRoute("DELETE", route, handlers);
   };
-  //write data to response
+  
+  use = (...handlers) => {
+    this._addRoute("USE", "*", handlers);
+  };
+    //write data to response
   _send(message) {
     this.res.write(message);
+    // console.log("this.res", this.res);
     this.res.end();
   }
   //write json data to response
@@ -142,6 +142,41 @@ class express {
     const parsedQuery = querystring.parse(query);
     return parsedQuery;
   };
+  _getHeaders = (req) => {
+    const { headers } = req;
+    return headers;
+  };
+
+  _sendFile = (path) => {
+    // console.log("path",res);
+    if (typeof path !== "string") throw new Error("Path must be a string");
+    const fs = require("fs");
+    const file = fs.readFileSync(path);
+    const contentType = this._getContentType(path);
+    console.log("contentType", this.res);
+
+    this.res.writeHead(200, { "Content-Type": contentType });
+    // this.res.writeHead(200,"Content-Type", contentType);
+
+    // this.res.end(file);
+  };
+  _getContentType(filePath) {
+    const extname = path.extname(filePath).toLowerCase();
+
+    if (extname === ".html") {
+      return "text/html";
+    } else if (extname === ".txt") {
+      return "text/txt";
+    } else if (extname === ".js") {
+      return "text/javascript";
+    } else if (extname === ".png") {
+      return "image/png";
+    } else if (extname === ".jpg" || extname === ".jpeg") {
+      return "image/jpeg";
+    } else {
+      return "application/octet-stream";
+    }
+  }
 }
 
 module.exports = express;
