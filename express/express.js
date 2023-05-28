@@ -37,8 +37,6 @@ class express {
 
     res.send = this._send.bind({ res });
 
-    // res.status(200);
-
     const method = req.method.toUpperCase();
     const path = req.url;
 
@@ -114,51 +112,46 @@ class express {
   delete = (route, ...handlers) => {
     this._addRoute("DELETE", route, handlers);
   };
-  
-  use = (...handlers) => {
-    this._addRoute("USE", "*", handlers);
-  };
-    //write data to response
+
+  // use = (...handlers) => {
+  //   if (this.req) {
+  //     this.req.method = "use";
+  //   }
+  //   this._addRoute("USE", "*", handlers);
+  // };
+  //write data to response
   _send(message) {
     this.res.write(message);
     // console.log("this.res", this.res);
     this.res.end();
+    // return this.res
   }
   //write json data to response
   _json(message) {
     this.res.setHeader("Content-Type", "application/json");
     this.res.write(JSON.stringify(message));
-    // res.end();
     this.res.end();
+
+    // return this.res;
   }
   _status(status) {
     if (typeof status !== "number") throw new Error("Status must be a number");
     this.res.statusCode = status;
     return this.res;
   }
-  _getQueries = (req) => {
-    const parsedUrl = url.parse(req.url);
-    const { query } = parsedUrl;
-    const parsedQuery = querystring.parse(query);
-    return parsedQuery;
-  };
-  _getHeaders = (req) => {
-    const { headers } = req;
-    return headers;
-  };
 
   _sendFile = (path) => {
-    // console.log("path",res);
+    console.log("path", path);
     if (typeof path !== "string") throw new Error("Path must be a string");
     const fs = require("fs");
     const file = fs.readFileSync(path);
     const contentType = this._getContentType(path);
     console.log("contentType", this.res);
 
-    this.res.writeHead(200, { "Content-Type": contentType });
-    // this.res.writeHead(200,"Content-Type", contentType);
+    // this.res.writeHead(200, { "Content-Type": contentType });
+    this.res.writeHead(200, "Content-Type", contentType);
 
-    // this.res.end(file);
+    this.res.end(file);
   };
   _getContentType(filePath) {
     const extname = path.extname(filePath).toLowerCase();
@@ -177,6 +170,16 @@ class express {
       return "application/octet-stream";
     }
   }
+  _getQueries = (req) => {
+    const parsedUrl = url.parse(req.url);
+    const { query } = parsedUrl;
+    const parsedQuery = querystring.parse(query);
+    return parsedQuery;
+  };
+  _getHeaders = (req) => {
+    const { headers } = req;
+    return headers;
+  };
 }
 
 module.exports = express;
