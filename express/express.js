@@ -23,11 +23,8 @@ class express {
     const query = this._getQueries(req);
 
     const body = await this._getBody(req);
-    // req.headers = this._getHeaders(req);
-    req.headers = deprecate(
-      req.headers,
-      "req.headers: Use req.getHeaders() instead"
-    );
+    req.headers = this._getHeaders(req);
+    // req.headers = req.headers;
     req.body = JSON.parse(body);
     req.query = query;
 
